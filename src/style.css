@@ -1,0 +1,272 @@
+/**
+ * Limbus - Global Styles
+ */
+
+:root {
+  --color-bg: #0A0A0A;
+  --color-text: rgba(255, 255, 255, 0.87);
+  --color-text-dim: rgba(255, 255, 255, 0.5);
+  --color-woede: #FF0000;
+  --color-verdriet: #0044FF;
+  --color-kalmte: #00FF88;
+  --color-error: #FF6B6B;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: transparent;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: var(--color-text);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: transparent;
+}
+
+/* ============================================
+   Main Canvas - Fullscreen
+   ============================================ */
+#canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  background: transparent;
+}
+
+/* ============================================
+   UI Overlay
+   ============================================ */
+.ui-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg);
+}
+
+/* ============================================
+   Loading State
+   ============================================ */
+.loading {
+  text-align: center;
+}
+
+.loading h1 {
+  font-size: 2.5rem;
+  font-weight: 300;
+  margin-bottom: 1.5rem;
+  opacity: 0.9;
+  letter-spacing: 0.1em;
+}
+
+.loading p {
+  font-size: 1rem;
+  color: var(--color-text-dim);
+}
+
+.loading .spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 2rem auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   Permission Request State
+   ============================================ */
+.permission-request {
+  text-align: center;
+}
+
+.permission-request h1 {
+  font-size: 2.5rem;
+  font-weight: 300;
+  margin-bottom: 2rem;
+  letter-spacing: 0.1em;
+}
+
+.permission-request .camera-icon {
+  margin: 2rem 0;
+  opacity: 0.8;
+}
+
+.permission-request .camera-icon svg {
+  stroke: var(--color-text);
+}
+
+.permission-request p {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.permission-request .hint {
+  font-size: 0.9rem;
+  color: var(--color-text-dim);
+  margin-top: 1rem;
+}
+
+/* ============================================
+   Permission Denied State
+   ============================================ */
+.permission-denied {
+  text-align: center;
+  pointer-events: auto;
+}
+
+.permission-denied .error-icon {
+  margin-bottom: 1.5rem;
+  opacity: 0.8;
+}
+
+.permission-denied .error-icon svg {
+  stroke: var(--color-error);
+}
+
+.permission-denied h1 {
+  font-size: 1.5rem;
+  font-weight: 400;
+  margin-bottom: 1rem;
+}
+
+.permission-denied p {
+  font-size: 1rem;
+  color: var(--color-text-dim);
+  margin-bottom: 1.5rem;
+  max-width: 400px;
+}
+
+.permission-denied .hint {
+  font-size: 0.85rem;
+  color: var(--color-text-dim);
+  margin-top: 1.5rem;
+  opacity: 0.7;
+}
+
+/* ============================================
+   Error State
+   ============================================ */
+.error-state {
+  text-align: center;
+  pointer-events: auto;
+}
+
+.error-state .error-icon {
+  margin-bottom: 1.5rem;
+}
+
+.error-state h1 {
+  font-size: 1.5rem;
+  font-weight: 400;
+  margin-bottom: 1rem;
+}
+
+.error-state p {
+  font-size: 1rem;
+  color: var(--color-text-dim);
+  margin-bottom: 1.5rem;
+  max-width: 400px;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+.retry-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.85rem 2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.retry-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.retry-button:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   Hint Toast
+   ============================================ */
+.hint-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: var(--color-text);
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.hint-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================
+   Debug Panel (lil-gui)
+   ============================================ */
+.lil-gui {
+  --width: 300px;
+  position: fixed !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 100 !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(5px);
+  border-radius: 4px;
+}
+
+/* ============================================
+   FPS Counter (stats.js)
+   ============================================ */
+.stats-panel {
+  position: fixed !important;
+  top: 10px !important;
+  left: 10px !important;
+  z-index: 100 !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  padding: 5px;
+  border-radius: 4px;
+}
