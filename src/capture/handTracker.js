@@ -8,7 +8,12 @@ import {
   FilesetResolver
 } from '@mediapipe/tasks-vision';
 import { logger } from '../utils/logger.js';
-import { getFingerStates, getFingerCount } from '../utils/handPose.js';
+import {
+  getFingerStates,
+  getFingerCount,
+  getPalmCenter,
+  getFingerSpread
+} from '../utils/handPose.js';
 
 export class HandTracker {
   constructor(config) {
@@ -26,9 +31,9 @@ export class HandTracker {
     logger.info('HandTracker: Loading MediaPipe model...');
 
     try {
-      // Load MediaPipe vision WASM
+      // Load MediaPipe vision WASM (local files for offline support)
       const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+        '/mediapipe/wasm'
       );
 
       // Create GestureRecognizer
@@ -100,6 +105,16 @@ export class HandTracker {
       const fingerStates = getFingerStates(landmarks, handednessLabel);
       const fingerCount = getFingerCount(landmarks, handednessLabel);
 
+      // Fallback gesture detection based on finger states
+      const isClosedFistByFingers = fingerCount <= 1; // 0 or 1 finger (thumb may stick out)
+      const isOpenPalmByFingers = fingerCount >= 4;   // 4 or 5 fingers extended
+
+      // Use MediaPipe gesture if available, otherwise fallback to finger-based detection
+      const isClosedFist = gesture?.categoryName === 'Closed_Fist' ||
+                           (!gesture && isClosedFistByFingers);
+      const isOpenPalm = gesture?.categoryName === 'Open_Palm' ||
+                         (!gesture && isOpenPalmByFingers);
+
       hands.push({
         // 21 normalized landmarks (x, y, z in 0-1 range)
         landmarks: landmarks.map(lm => ({
@@ -132,8 +147,8 @@ export class HandTracker {
         // Computed properties
         isLeftHand: handednessLabel === 'Left',
         isRightHand: handednessLabel === 'Right',
-        isClosedFist: gesture?.categoryName === 'Closed_Fist',
-        isOpenPalm: gesture?.categoryName === 'Open_Palm'
+        isClosedFist,
+        isOpenPalm
       });
     }
 
@@ -141,51 +156,19 @@ export class HandTracker {
   }
 
   /**
-   * Get palm center from landmarks
-   * Uses landmarks 0 (wrist) and finger bases (5, 9, 13, 17)
-   * @param {Object[]} landmarks - Array of 21 landmarks
-   * @returns {{x: number, y: number, z: number}}
+   * Get palm center from landmarks (delegated to handPose utils)
+   * @deprecated Use getPalmCenter from utils/handPose.js instead
    */
   static getPalmCenter(landmarks) {
-    const palmIndices = [0, 5, 9, 13, 17];
-    let x = 0, y = 0, z = 0;
-
-    for (const idx of palmIndices) {
-      x += landmarks[idx].x;
-      y += landmarks[idx].y;
-      z += landmarks[idx].z;
-    }
-
-    return {
-      x: x / palmIndices.length,
-      y: y / palmIndices.length,
-      z: z / palmIndices.length
-    };
+    return getPalmCenter(landmarks);
   }
 
   /**
-   * Calculate finger spread (how open the hand is)
-   * @param {Object[]} landmarks - Array of 21 landmarks
-   * @returns {number} - 0 (closed) to 1 (fully open)
+   * Calculate finger spread (delegated to handPose utils)
+   * @deprecated Use getFingerSpread from utils/handPose.js instead
    */
   static getFingerSpread(landmarks) {
-    // Fingertip indices
-    const fingertips = [4, 8, 12, 16, 20]; // thumb, index, middle, ring, pinky
-    const palmCenter = HandTracker.getPalmCenter(landmarks);
-
-    // Calculate average distance from palm center to fingertips
-    let totalDistance = 0;
-    for (const idx of fingertips) {
-      const dx = landmarks[idx].x - palmCenter.x;
-      const dy = landmarks[idx].y - palmCenter.y;
-      totalDistance += Math.sqrt(dx * dx + dy * dy);
-    }
-
-    const avgDistance = totalDistance / fingertips.length;
-
-    // Normalize to 0-1 range (empirically determined thresholds)
-    // Closed fist: ~0.08, Open hand: ~0.25
-    return Math.min(1, Math.max(0, (avgDistance - 0.08) / 0.17));
+    return getFingerSpread(landmarks);
   }
 
   /**

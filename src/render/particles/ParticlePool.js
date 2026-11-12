@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import vertexShader from '../shaders/particle.vert?raw';
 import fragmentShader from '../shaders/particle.frag?raw';
+import { initParticleAttributes, markAttributesDirty } from '../../utils/bufferHelpers.js';
 
 export class ParticlePool {
   constructor(maxParticles = 10000) {
@@ -61,23 +62,7 @@ export class ParticlePool {
 
     // Create BufferGeometry
     this.geometry = new THREE.BufferGeometry();
-
-    this.geometry.setAttribute(
-      'position',
-      new THREE.BufferAttribute(this.positions, 3)
-    );
-    this.geometry.setAttribute(
-      'color',
-      new THREE.BufferAttribute(this.colors, 3)
-    );
-    this.geometry.setAttribute(
-      'size',
-      new THREE.BufferAttribute(this.sizes, 1)
-    );
-    this.geometry.setAttribute(
-      'opacity',
-      new THREE.BufferAttribute(this.opacities, 1)
-    );
+    initParticleAttributes(this.geometry, this.positions, this.colors, this.sizes, this.opacities);
 
     // Custom ShaderMaterial with glow effect
     this.material = new THREE.ShaderMaterial({
@@ -161,10 +146,7 @@ export class ParticlePool {
     }
 
     // Mark buffers as needing update
-    this.geometry.attributes.position.needsUpdate = true;
-    this.geometry.attributes.color.needsUpdate = true;
-    this.geometry.attributes.size.needsUpdate = true;
-    this.geometry.attributes.opacity.needsUpdate = true;
+    markAttributesDirty(this.geometry);
   }
 
   /**

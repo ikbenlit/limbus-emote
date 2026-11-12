@@ -82,6 +82,10 @@ export class EmotionDetector {
    * @private
    */
   _detectEmotion(motionState, gesture) {
+    // Motion detectie uitgeschakeld - alleen finger labels (POWER/FLOW/CALM) actief
+    return { emotion: 'neutraal', confidence: 1 };
+
+    /* UITGESCHAKELD - motion detectie was lastig te herkennen
     const { velocity, jerk, direction, circularScore } = motionState;
     const speed = velocity.magnitude;
 
@@ -138,6 +142,7 @@ export class EmotionDetector {
 
     // Default: keep current or neutral
     return { emotion: null, confidence: 0 };
+    */
   }
 
   /**

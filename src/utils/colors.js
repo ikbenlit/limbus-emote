@@ -1,93 +1,61 @@
 /**
- * Centralized emotion color definitions
- * Single source of truth for all emotion-related colors
+ * Centralized emotion color utilities
+ * Colors zijn geconfigureerd in config.js (particles section)
+ * Dit bestand biedt helper functies om die kleuren op te halen
  */
 
 import { hexToRgb } from './math.js';
+import { CONFIG } from '../config.js';
 
 /**
- * Emotion color palette
- * Each emotion has:
- * - hex: Primary hex color for Three.js materials
- * - secondary: Secondary hex for gradients/particles
- * - rgb: Normalized RGB (0-1) for shaders/interpolation
+ * Get color object for an emotion/gesture from config
+ * @param {string} emotion - Emotion or gesture name (e.g., 'woede', '1finger')
+ * @returns {object} Color object with hex (primary), secondary, and rgb
  */
-export const EMOTION_COLORS = {
-  woede: {
-    hex: 0xFF3300,
-    secondary: 0xFF6600,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  verdriet: {
-    hex: 0x0044FF,
-    secondary: 0x6600FF,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  kalmte: {
-    hex: 0x00FF88,
-    secondary: 0x0088FF,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  rust: {
-    hex: 0x00FF88,
-    secondary: 0x0088FF,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  power: {
-    hex: 0xFF3300,
-    secondary: 0xFF6600,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  flow: {
-    hex: 0x0044FF,
-    secondary: 0x6600FF,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  calm: {
-    hex: 0x00FF88,
-    secondary: 0x0088FF,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  blij: {
-    hex: 0xFFD700,
-    secondary: 0xFF69B4,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  bang: {
-    hex: 0x9932CC,
-    secondary: 0xFFFFFF,
-    get rgb() { return hexToRgb(this.hex); }
-  },
-  neutraal: {
+function getColorFromConfig(emotion) {
+  const particleConfig = CONFIG.particles[emotion];
+
+  if (particleConfig?.colors) {
+    const hex = particleConfig.colors.primary;
+    const secondary = particleConfig.colors.secondary;
+    return {
+      hex,
+      secondary,
+      get rgb() { return hexToRgb(hex); }
+    };
+  }
+
+  // Fallback: wit
+  return {
     hex: 0xFFFFFF,
     secondary: 0xCCCCCC,
-    get rgb() { return hexToRgb(this.hex); }
-  }
-};
+    get rgb() { return hexToRgb(0xFFFFFF); }
+  };
+}
 
 /**
- * Get color for an emotion
- * @param {string} emotion - Emotion name
+ * Get color for an emotion/gesture
+ * @param {string} emotion - Emotion or gesture name
  * @returns {object} Color object with hex, secondary, and rgb
  */
 export function getEmotionColor(emotion) {
-  return EMOTION_COLORS[emotion] || EMOTION_COLORS.neutraal;
+  return getColorFromConfig(emotion);
 }
 
 /**
  * Get normalized RGB for an emotion (for shaders/particles)
- * @param {string} emotion - Emotion name
+ * @param {string} emotion - Emotion or gesture name
  * @returns {{r: number, g: number, b: number}} Normalized RGB
  */
 export function getEmotionRgb(emotion) {
-  return getEmotionColor(emotion).rgb;
+  return getColorFromConfig(emotion).rgb;
 }
 
 /**
  * Get hex color for an emotion (for Three.js materials)
- * @param {string} emotion - Emotion name
+ * @param {string} emotion - Emotion or gesture name
  * @returns {number} Hex color value
  */
 export function getEmotionHex(emotion) {
-  return getEmotionColor(emotion).hex;
+  return getColorFromConfig(emotion).hex;
 }

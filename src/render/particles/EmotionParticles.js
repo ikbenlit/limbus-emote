@@ -29,6 +29,9 @@ export class EmotionParticles {
     this.amplifyMultiplier = 1;
     this.amplifyScale = 1;
 
+    // Pause state for finger label mode
+    this.paused = false;
+
     // Fusion visual feedback
     this.fusionPulse = {
       active: false,
@@ -76,14 +79,29 @@ export class EmotionParticles {
   }
 
   /**
+   * Pause particle spawning (for finger label mode)
+   * @param {boolean} paused - Whether to pause spawning
+   */
+  setPaused(paused) {
+    // Only act on state change
+    if (this.paused === paused) return;
+
+    this.paused = paused;
+    // Clear existing particles when entering paused mode
+    if (paused) {
+      this.pool.clear();
+    }
+  }
+
+  /**
    * Update particles - spawn new ones and update existing
    */
   update(deltaTime, palmPosition, hasHand) {
     const emotionConfig = this.config[this.currentEmotion];
     if (!emotionConfig) return;
 
-    // Spawn new particles if hand is detected
-    if (hasHand && palmPosition) {
+    // Spawn new particles if hand is detected and not paused
+    if (hasHand && palmPosition && !this.paused) {
       // Apply amplification multiplier to spawn rate
       const spawnRate = emotionConfig.count * this.amplifyMultiplier;
       this.spawnAccumulator += spawnRate * deltaTime * 0.5;

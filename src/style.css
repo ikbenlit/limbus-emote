@@ -2,6 +2,12 @@
  * Limbus - Global Styles
  */
 
+/* Local Inter font (offline support) */
+@import '@fontsource/inter/300.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+
 :root {
   --color-bg: #0A0A0A;
   --color-text: rgba(255, 255, 255, 0.87);
@@ -18,7 +24,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -95,7 +102,9 @@ html, body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ============================================
@@ -248,13 +257,52 @@ html, body {
    Debug Panel (lil-gui)
    ============================================ */
 .lil-gui {
-  --width: 300px;
+  --width: 250px;
+  --background-color: rgba(10, 10, 10, 0.5);
+  --header-color: rgba(0, 0, 0, 0.2);
+  --widget-color: rgba(255, 255, 255, 0.05);
+  --hover-color: rgba(255, 255, 255, 0.1);
+  --focus-color: rgba(255, 255, 255, 0.1);
+  --number-color: #00FF88;
+  --string-color: #00FF88;
+
   position: fixed !important;
+  z-index: 100 !important;
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.lil-gui.gui-settings {
   top: 10px !important;
   right: 10px !important;
-  z-index: 100 !important;
-  background: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(5px);
+}
+
+.lil-gui.gui-left {
+  bottom: 20px !important;
+  left: 20px !important;
+  top: auto !important;
+}
+
+.lil-gui.gui-right {
+  bottom: 20px !important;
+  right: 20px !important;
+  top: auto !important;
+}
+
+.lil-gui .title {
+  background: var(--header-color) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  padding: 8px 12px !important;
+}
+
+.lil-gui .controller {
+  margin-left: 4px !important;
+  margin-right: 4px !important;
   border-radius: 4px;
 }
 
@@ -269,4 +317,185 @@ html, body {
   background: rgba(0, 0, 0, 0.5) !important;
   padding: 5px;
   border-radius: 4px;
+}
+
+/* ============================================
+   Sci-Fi HUD Overlay
+   ============================================ */
+.hud-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+}
+
+.hud-panel {
+  position: absolute;
+  padding: 12px 16px;
+  user-select: none;
+}
+
+/* System Status - Top Left */
+.hud-system {
+  top: 20px;
+  left: 20px;
+}
+
+/* Left Hand - Bottom Left */
+.hud-left-hand {
+  bottom: 20px;
+  left: 20px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.hud-left-hand.active {
+  opacity: 1;
+}
+
+/* Right Hand - Bottom Right */
+.hud-right-hand {
+  bottom: 20px;
+  right: 20px;
+  text-align: right;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.hud-right-hand.active {
+  opacity: 1;
+}
+
+/* HUD Typography */
+.hud-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.hud-value {
+  font-size: 26px;
+  font-weight: 400;
+  color: #00FFFF;
+  text-shadow:
+    0 0 10px rgba(0, 255, 255, 1),
+    0 0 25px rgba(0, 255, 255, 0.7),
+    0 0 40px rgba(0, 255, 255, 0.4),
+    2px 2px 0 rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.05em;
+}
+
+.hud-status.online {
+  color: #00FFFF;
+  text-shadow:
+    0 0 10px rgba(0, 255, 255, 1),
+    0 0 25px rgba(0, 255, 255, 0.7),
+    0 0 40px rgba(0, 255, 255, 0.4),
+    2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-status.offline {
+  color: rgba(255, 255, 255, 0.5);
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-particles {
+  font-size: 32px;
+}
+
+.hud-number {
+  color: #00FFFF;
+}
+
+.hud-unit {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-left: 6px;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-spacer {
+  height: 10px;
+}
+
+.hud-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.hud-label-inline {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.1em;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-value-inline {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Mode display */
+.hud-mode {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.1em;
+  margin-top: 6px;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-mode-value {
+  color: #FF00FF;
+  text-shadow:
+    0 0 10px rgba(255, 0, 255, 1),
+    0 0 25px rgba(255, 0, 255, 0.7),
+    0 0 40px rgba(255, 0, 255, 0.4),
+    2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-mode-value.mode-standby {
+  color: rgba(255, 255, 255, 0.6);
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-mode-value.mode-active {
+  color: #FF00FF;
+  text-shadow:
+    0 0 10px rgba(255, 0, 255, 1),
+    0 0 25px rgba(255, 0, 255, 0.7),
+    0 0 40px rgba(255, 0, 255, 0.4),
+    2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-mode-value.mode-action {
+  color: #FFFF00;
+  text-shadow:
+    0 0 10px rgba(255, 255, 0, 1),
+    0 0 25px rgba(255, 255, 0, 0.7),
+    0 0 40px rgba(255, 255, 0, 0.4),
+    2px 2px 0 rgba(0, 0, 0, 0.5);
+  animation: hud-pulse 0.3s ease-in-out;
+}
+
+@keyframes hud-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.hud-subtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 6px;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
 }

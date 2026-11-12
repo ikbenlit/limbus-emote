@@ -30,13 +30,30 @@ export class TextSampler {
   sample(text) {
     if (!text) return [];
 
-    // Check cache
-    if (this.cache.has(text)) {
-      return this.cache.get(text);
-    }
+    // DISABLED CACHE: Config values may have changed
+    // if (this.cache.has(text)) {
+    //   return this.cache.get(text);
+    // }
 
     const positions = this._sampleText(text);
-    this.cache.set(text, positions);
+
+    // Shuffle positions for even distribution when maxCount < total positions
+    // Without this, only top of text is visible (sampling goes top→bottom)
+    this._shuffleArray(positions);
+
+    // DEBUG: Log position range
+    if (positions.length > 0) {
+      const yValues = positions.map(p => p.y);
+      const xValues = positions.map(p => p.x);
+      console.log('TextSampler positions:', {
+        text,
+        count: positions.length,
+        yMin: Math.min(...yValues).toFixed(3),
+        yMax: Math.max(...yValues).toFixed(3),
+        xMin: Math.min(...xValues).toFixed(3),
+        xMax: Math.max(...xValues).toFixed(3)
+      });
+    }
 
     return positions;
   }
@@ -116,5 +133,16 @@ export class TextSampler {
    */
   getDebugCanvas() {
     return this.canvas;
+  }
+
+  /**
+   * Fisher-Yates shuffle for even position distribution
+   * @private
+   */
+  _shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
   }
 }

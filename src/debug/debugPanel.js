@@ -4,18 +4,10 @@ import { CONFIG } from '../config.js';
 export const initDebugPanel = ({ motionAnalyzer, emotionDetector } = {}) => {
   if (!CONFIG.debug?.enabled) return null;
 
-  const gui = new GUI({ title: 'Limbus Debug' });
-  const live = {
-    hands: 0,
-    rightEmotion: 'neutraal',
-    rightVelocity: 0,
-    rightJerk: 0,
-    rightCircular: 0,
-    leftEmotion: 'neutraal',
-    leftVelocity: 0,
-    leftJerk: 0,
-    leftCircular: 0
-  };
+  // 1. Settings GUI (Top Right, Collapsed by default)
+  const settingsGui = new GUI({ title: '⚙️ Settings', container: document.body });
+  settingsGui.domElement.classList.add('gui-settings');
+  settingsGui.close();
 
   const syncMotion = () => {
     motionAnalyzer?.updateConfig(CONFIG.motion);
@@ -26,7 +18,7 @@ export const initDebugPanel = ({ motionAnalyzer, emotionDetector } = {}) => {
     emotionDetector?.updateConfig(CONFIG);
   };
 
-  const motion = gui.addFolder('Motion');
+  const motion = settingsGui.addFolder('Motion');
   motion.add(CONFIG.motion, 'velocityLow', 0.005, 0.08, 0.001).onChange(syncMotion);
   motion.add(CONFIG.motion, 'velocityMedium', 0.01, 0.12, 0.001).onChange(syncMotion);
   motion.add(CONFIG.motion, 'velocityHigh', 0.02, 0.2, 0.001).onChange(syncMotion);
@@ -36,11 +28,11 @@ export const initDebugPanel = ({ motionAnalyzer, emotionDetector } = {}) => {
   motion.add(CONFIG.motion, 'smoothingAlpha', 0.05, 0.95, 0.01).onChange(syncMotion);
   motion.add(CONFIG.motion, 'trajectoryBufferSize', 10, 60, 1).onChange(syncMotion);
 
-  const emotion = gui.addFolder('Emotion');
+  const emotion = settingsGui.addFolder('Emotion');
   emotion.add(CONFIG.emotion, 'hysteresisDelay', 100, 1000, 10).onChange(syncEmotion);
   emotion.add(CONFIG.emotion, 'transitionDuration', 100, 800, 10).onChange(syncEmotion);
 
-  const twoHand = gui.addFolder('Two-Hand');
+  const twoHand = settingsGui.addFolder('Two-Hand');
   twoHand.add(CONFIG.twoHand, 'magnetRadius', 0.1, 1, 0.01);
   twoHand.add(CONFIG.twoHand, 'magnetStrength', 0, 5, 0.05);
   twoHand.add(CONFIG.twoHand, 'fusionDistance', 0.05, 0.4, 0.005);
@@ -52,27 +44,76 @@ export const initDebugPanel = ({ motionAnalyzer, emotionDetector } = {}) => {
   twoHand.add(CONFIG.twoHand, 'fusionSpeed', 0.1, 1.2, 0.05);
   twoHand.add(CONFIG.twoHand, 'fusionDuration', 0.2, 1.5, 0.05);
 
-  const debug = gui.addFolder('Debug');
+  const debug = settingsGui.addFolder('Debug');
   debug.add(CONFIG.debug, 'enabled');
   debug.add(CONFIG.debug, 'logEmotionChanges');
 
-  const liveFolder = gui.addFolder('Live');
-  liveFolder.add(live, 'hands').listen();
-  liveFolder.add(live, 'rightEmotion').listen();
-  liveFolder.add(live, 'rightVelocity').listen();
-  liveFolder.add(live, 'rightJerk').listen();
-  liveFolder.add(live, 'rightCircular').listen();
-  liveFolder.add(live, 'leftEmotion').listen();
-  liveFolder.add(live, 'leftVelocity').listen();
-  liveFolder.add(live, 'leftJerk').listen();
-  liveFolder.add(live, 'leftCircular').listen();
-  liveFolder.open();
+  // 2. Left Hand Stats (Bottom Left)
+  const leftGui = new GUI({ title: '👈 Left Hand', container: document.body });
+  leftGui.domElement.classList.add('gui-left');
+  const leftLive = {
+    emotion: 'neutraal',
+    velocity: 0,
+    jerk: 0,
+    circular: 0
+  };
+  leftGui.add(leftLive, 'emotion').listen();
+  leftGui.add(leftLive, 'velocity').listen();
+  leftGui.add(leftLive, 'jerk').listen();
+  leftGui.add(leftLive, 'circular').listen();
+
+  // 3. Right Hand Stats (Bottom Right)
+  const rightGui = new GUI({ title: '👉 Right Hand', container: document.body });
+  rightGui.domElement.classList.add('gui-right');
+  const rightLive = {
+    emotion: 'neutraal',
+    velocity: 0,
+    jerk: 0,
+    circular: 0,
+    fingerCount: 0,
+    label: '-',
+    fingers: '-'
+  };
+  rightGui.add(rightLive, 'emotion').listen();
+  rightGui.add(rightLive, 'velocity').listen();
+  rightGui.add(rightLive, 'jerk').listen();
+  rightGui.add(rightLive, 'circular').listen();
+  rightGui.add(rightLive, 'fingerCount').listen();
+  rightGui.add(rightLive, 'label').listen();
+  rightGui.add(rightLive, 'fingers').listen();
 
   return {
-    gui,
     updateLiveStats: (stats) => {
-      Object.assign(live, stats);
+      if (stats.hands !== undefined) {
+        // Option to display total hands somewhere if needed
+      }
+      if (stats.leftEmotion !== undefined) {
+        leftLive.emotion = stats.leftEmotion;
+        leftLive.velocity = stats.leftVelocity;
+        leftLive.jerk = stats.leftJerk;
+        leftLive.circular = stats.leftCircular;
+      }
+      if (stats.rightEmotion !== undefined) {
+        rightLive.emotion = stats.rightEmotion;
+        rightLive.velocity = stats.rightVelocity;
+        rightLive.jerk = stats.rightJerk;
+        rightLive.circular = stats.rightCircular;
+        rightLive.fingerCount = stats.rightFingerCount ?? 0;
+        rightLive.label = stats.rightLabel || '-';
+        rightLive.fingers = stats.rightFingers || '-';
+      }
+
+      // Auto-hide/show panels based on hand detection
+      const hasLeft = stats.leftVelocity !== undefined && stats.leftVelocity !== 0;
+      const hasRight = stats.rightVelocity !== undefined && stats.rightVelocity !== 0;
+
+      leftGui.domElement.style.opacity = hasLeft ? '1' : '0.3';
+      rightGui.domElement.style.opacity = hasRight ? '1' : '0.3';
     },
-    destroy: () => gui.destroy()
+    destroy: () => {
+      settingsGui.destroy();
+      leftGui.destroy();
+      rightGui.destroy();
+    }
   };
 };

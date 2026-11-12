@@ -8,11 +8,16 @@ import { CONFIG } from './config.js';
 import { Webcam } from './capture/webcam.js';
 import { HandTracker } from './capture/handTracker.js';
 import { UI } from './ui.js';
+import { SixSevenOverlay } from './ui/SixSevenOverlay.js';
+import { HudOverlay } from './ui/HudOverlay.js';
 import { Renderer } from './render/renderer.js';
 import { EmotionParticles } from './render/particles/EmotionParticles.js';
 import { TextParticles } from './render/particles/TextParticles.js';
+import { SphereParticles } from './render/particles/SphereParticles.js';
+import { SixSevenParticles } from './render/particles/SixSevenParticles.js';
 import { HandOverlay } from './render/HandOverlay.js';
 import { getEmotionRgb, getEmotionHex } from './utils/colors.js';
+import { getPalmCenter } from './utils/handPose.js';
 import { logger } from './utils/logger.js';
 import { initDebugPanel } from './debug/debugPanel.js';
 import { initPerfMonitor } from './debug/perfMonitor.js';
@@ -21,7 +26,10 @@ import * as THREE from 'three';
 // Analysis layer
 import { MotionAnalyzer } from './analysis/motionAnalyzer.js';
 import { EmotionDetector } from './analysis/emotionDetector.js';
-import { TwoHandController } from './analysis/TwoHandController.js';
+import { GestureController } from './analysis/GestureController.js';
+
+// Audio
+import { AudioManager } from './audio/AudioManager.js';
 
 class Limbus {
   constructor() {
@@ -29,14 +37,24 @@ class Limbus {
     this.handTracker = new HandTracker(CONFIG.mediapipe);
     this.renderer = new Renderer(CONFIG.render);
     this.ui = new UI();
+    this.sixSevenOverlay = new SixSevenOverlay();
+    this.hudOverlay = new HudOverlay();
     this.emotionParticles = new EmotionParticles(CONFIG.particles);
     this.textParticles = new TextParticles(CONFIG.textParticles);
+    this.sphereParticles = new SphereParticles(CONFIG.sphereParticles);
+    this.sixSevenParticles = new SixSevenParticles(CONFIG.particles.sixSeven, CONFIG.textParticles);
     this.handOverlay = null; // Initialized after renderer
 
     // Analysis layer
     this.motionAnalyzer = new MotionAnalyzer(CONFIG.motion || {});
     this.emotionDetector = new EmotionDetector(CONFIG);
-    this.twoHandController = new TwoHandController(CONFIG.twoHand);
+    this.gestureController = new GestureController(CONFIG, {
+      onExplode: () => this.textParticles.triggerExplode(),
+      onImplode: (target) => this.textParticles.triggerImplode(target)
+    });
+
+    // Audio manager for whoosh effects
+    this.audioManager = new AudioManager(CONFIG);
 
     // Test object to visualize hand position (can be removed later)
     this.handIndicator = null;
@@ -45,14 +63,19 @@ class Limbus {
     this.handPos = { x: 0, y: 0 };
     this.hasHand = false;
     this.currentEmotion = 'neutraal';
+    this.wasFingerLabel = false;  // Track previous state for toSphere transition
 
     // Multiple hand indicators
     this.handIndicators = new Map();
 
     this.initialized = false;
     this.lastTime = performance.now();
-    this.leftGesture = null;
     this.lastDebugUpdate = 0;
+
+    // FPS tracking for HUD
+    this.fpsFrames = 0;
+    this.fpsLastTime = performance.now();
+    this.currentFps = 60;
   }
 
   async init() {
@@ -60,11 +83,25 @@ class Limbus {
 
     // Initialize UI
     this.ui.init();
-    this.debugPanel = initDebugPanel({
-      motionAnalyzer: this.motionAnalyzer,
-      emotionDetector: this.emotionDetector
-    });
-    this.perfMonitor = initPerfMonitor();
+    this.sixSevenOverlay.init();
+    this.hudOverlay.init();
+
+    // Debug panels disabled - using new sci-fi HUD instead
+    // this.debugPanel = initDebugPanel({
+    //   motionAnalyzer: this.motionAnalyzer,
+    //   emotionDetector: this.emotionDetector
+    // });
+    // this.perfMonitor = initPerfMonitor();
+    this.debugPanel = null;
+    this.perfMonitor = null;
+
+    // Initialize audio (will be resumed on first user interaction)
+    await this.audioManager.init();
+
+    // Resume audio context on first click (autoplay policy)
+    document.addEventListener('click', () => {
+      this.audioManager.resume();
+    }, { once: true });
 
     // Check browser support
     if (!Webcam.isSupported()) {
@@ -107,6 +144,14 @@ class Limbus {
       // Initialize and add text particles
       this.textParticles.init();
       this.renderer.add(this.textParticles.getMesh());
+
+      // Initialize and add sphere particles (right hand open palm)
+      this.sphereParticles.init();
+      this.renderer.add(this.sphereParticles.getMesh());
+
+      // Initialize and add six seven particles
+      this.sixSevenParticles.init();
+      this.renderer.add(this.sixSevenParticles.getMesh());
 
       logger.info('Renderer ready, all systems added');
 
@@ -216,6 +261,14 @@ class Limbus {
     const deltaTime = (now - this.lastTime) / 1000;
     this.lastTime = now;
 
+    // Calculate FPS (update every second)
+    this.fpsFrames++;
+    if (now - this.fpsLastTime >= 1000) {
+      this.currentFps = this.fpsFrames;
+      this.fpsFrames = 0;
+      this.fpsLastTime = now;
+    }
+
     // Check if webcam is ready
     if (!this.webcam.isReady) return;
 
@@ -271,7 +324,7 @@ class Limbus {
     const handStates = {};
     const allLandmarks = [];
     for (const hand of hands) {
-      const palmCenter = HandTracker.getPalmCenter(hand.landmarks);
+      const palmCenter = getPalmCenter(hand.landmarks);
       const worldPos = this.renderer.screenToWorld(palmCenter.x, palmCenter.y);
       handStates[hand.handId] = {
         pos: worldPos,
@@ -283,28 +336,57 @@ class Limbus {
 
     this._updateLiveStats(hands, now);
 
-    // Left-hand text interactions (explode/implode)
-    const leftHand = hands.find(h => h.handId === 'left');
-    if (leftHand) {
-      this._handleLeftHandGesture(leftHand, handStates.left?.pos || null);
-    } else {
-      this.leftGesture = null;
+    // Update gesture controller (handles left/right gestures and two-hand interactions)
+    const gestureState = this.gestureController.update(hands, handStates);
+
+    // Update 6-7 meme overlay
+    const isSixSevenActive = gestureState.sixSeven?.active;
+    this.sixSevenParticles.update(
+      deltaTime,
+      gestureState.sixSeven?.leftPos,
+      gestureState.sixSeven?.rightPos,
+      isSixSevenActive
+    );
+
+    // When 6-7 meme is active, hide all other visuals for a clean look
+    if (isSixSevenActive) {
+      // Hide/pause all particle systems
+      this.emotionParticles.setPaused(true);
+      this.textParticles.fadeOut();
+      this.sphereParticles.hide();
+      this.wasFingerLabel = false;
+
+      // Hide hand overlay immediately (no fade)
+      this.handOverlay.mesh.visible = false;
+
+      // Hide HUD during 6-7 meme
+      this.hudOverlay.hide();
+
+      // Still update particles (for fade out) but don't spawn new ones
+      this.emotionParticles.update(deltaTime, this.handPos, false);
+      this.textParticles.update(deltaTime, this.handPos, false);
+      this.sphereParticles.update(deltaTime, null);
+
+      // Render and skip the rest of normal particle logic
+      this.renderer.render();
+      this.perfMonitor?.end();
+      return;
     }
 
-    // Update two-hand controller
-    const twoHandState = this.twoHandController.update(handStates);
+    // Show HUD when not in 6-7 mode
+    this.hudOverlay.show();
 
     // Determine source hand (right) for particle spawning
     const sourceHand = hands.find(h => h.handId === CONFIG.twoHand.sourceHand);
     const magnetHand = hands.find(h => h.handId === CONFIG.twoHand.magnetHand);
 
     // Update magnet and amplification based on mode
-    if (twoHandState.mode === 'createAndCatch' || twoHandState.mode === 'amplify') {
+    if (gestureState.mode === 'createAndCatch' || gestureState.mode === 'amplify') {
       // Set magnet position (left hand catches particles)
-      this.emotionParticles.setMagnet(twoHandState.magnetPos, CONFIG.twoHand);
+      this.emotionParticles.setMagnet(gestureState.magnetPos, CONFIG.twoHand);
 
       // Set amplification if emotions match
-      const isAmplified = twoHandState.mode === 'amplify';
+      const isAmplified = gestureState.mode === 'amplify';
       this.emotionParticles.setAmplify(
         isAmplified,
         CONFIG.twoHand.amplifyMultiplier,
@@ -317,12 +399,12 @@ class Limbus {
     }
 
     // Handle fusion explosion
-    if (twoHandState.mode === 'fusion') {
-      const fusionEmotion = twoHandState.emotionsMatch
-        ? twoHandState.leftEmotion
+    if (gestureState.mode === 'fusion') {
+      const fusionEmotion = gestureState.emotionsMatch
+        ? gestureState.leftEmotion
         : 'neutraal';
       this.emotionParticles.triggerFusion(
-        twoHandState.fusionPos,
+        gestureState.fusionPos,
         CONFIG.twoHand,
         fusionEmotion
       );
@@ -335,48 +417,79 @@ class Limbus {
     const primaryHand = sourceHand || hands[0];
 
     if (primaryHand) {
-      const palmCenter = HandTracker.getPalmCenter(primaryHand.landmarks);
+      const palmCenter = getPalmCenter(primaryHand.landmarks);
       const worldPos = this.renderer.screenToWorld(palmCenter.x, palmCenter.y);
 
-      // Store for particle spawning and hand overlay
+      // Store for particle spawning
       this.handPos = worldPos;
       this.hasHand = true;
-      this.currentLandmarks = primaryHand.landmarks;
-
-      // Update indicator position
-      this.handIndicator.position.x = worldPos.x;
-      this.handIndicator.position.y = worldPos.y;
-      this.handIndicator.visible = true;
 
       // Get emotion from detector (motion-based with hysteresis)
       let newEmotion = this.emotionDetector.getEmotion(primaryHand.handId);
-      const overrideEmotion = this._getRightHandLabel(primaryHand);
-      if (overrideEmotion) {
-        newEmotion = overrideEmotion;
+      const isFingerLabel = Boolean(gestureState.rightLabel);
+
+      if (isFingerLabel) {
+        newEmotion = gestureState.rightLabel;
       }
 
-      // Update hand indicator color from centralized colors
-      this.handIndicator.material.color.setHex(getEmotionHex(newEmotion));
-
-      // Update emotion for particles
+      // Update emotion for particles (only when NOT in finger label mode)
       if (newEmotion !== this.currentEmotion) {
+        logger.debug('Emotion changing:', this.currentEmotion, '->', newEmotion);
         this.currentEmotion = newEmotion;
-        this.emotionParticles.setEmotion(newEmotion);
-        this.textParticles.setEmotion(newEmotion, getEmotionRgb(newEmotion));
+
+        // Particles alleen updaten als GEEN finger label actief
+        if (!isFingerLabel) {
+          this.emotionParticles.setEmotion(newEmotion);
+        }
+
+        // Play whoosh on emotion change
+        this.audioManager.playWhoosh(0.7, this.handPos.x, newEmotion);
+
         if (CONFIG.debug.logEmotionChanges) {
           logger.debug('Emotion changed:', newEmotion);
         }
       }
 
-      // Animate ring rotation
-      this.handRing.rotation.z += deltaTime * 2;
+      // Text ALLEEN bij finger labels (BOOS/BLIJ/BANG)
+      if (isFingerLabel) {
+        this.textParticles.setEmotion(newEmotion, getEmotionRgb(newEmotion));
+        this.sphereParticles.hide();  // No sphere during finger labels
+      } else {
+        // Not in finger label mode
+
+        // Check for toSphere transition:
+        // 1. Coming from finger label (wasFingerLabel) AND making fist → toSphere
+        // 2. OR text still active from effect (explode/implode/reform) AND making fist → toSphere
+        if (gestureState.isRightHandFist && (this.wasFingerLabel || this.textParticles.isActive())) {
+          this.textParticles.triggerToSphere(this.handPos);
+        } else if (!this.wasFingerLabel && !this.textParticles.isActive()) {
+          // Only fade out if no text was/is active
+          this.textParticles.fadeOut();
+        }
+      }
+
+      // Sphere shows when right hand makes fist (regardless of text state)
+      if (gestureState.isRightHandFist && !isFingerLabel) {
+        this.sphereParticles.show(this.handPos);
+      } else if (!isFingerLabel) {
+        this.sphereParticles.hide();
+      }
+
+      // Track state for next frame
+      this.wasFingerLabel = isFingerLabel;
+
+      // Pauzeer particle spawning tijdens finger mode OF sphere mode OF toSphere effect
+      const pauseEmotionParticles = isFingerLabel ||
+                                     (gestureState.isRightHandFist && !isFingerLabel) ||
+                                     (this.textParticles.effect?.mode === 'toSphere');
+      this.emotionParticles.setPaused(pauseEmotionParticles);
 
       // Log occasionally for debugging
       if (CONFIG.debug.enabled && Math.random() < 0.02) {
         const stats = this.emotionParticles.getStats();
         const motionState = this.motionAnalyzer.getState(primaryHand.handId);
         logger.debug('Hand:', {
-          mode: twoHandState.mode,
+          mode: gestureState.mode,
           handId: primaryHand.handId,
           hands: hands.length,
           emotion: this.currentEmotion,
@@ -386,24 +499,95 @@ class Limbus {
         });
       }
     } else {
-      // No hand detected - hide indicator
-      this.handIndicator.visible = false;
       this.hasHand = false;
+      this.wasFingerLabel = false;  // Reset state
+      this.sphereParticles.hide();  // Hide sphere when no hand detected
     }
+
+    // Hand indicators disabled (debug visualization)
+    // this._updateHandIndicators(handStates, deltaTime);
 
     // Update emotion particles
     this.emotionParticles.update(deltaTime, this.handPos, this.hasHand);
 
-    // Update hand overlay
-    this.handOverlay.update(this.currentLandmarks, this.hasHand);
+    // Update hand overlay (pass all landmarks for multi-hand support)
+    this.handOverlay.update(allLandmarks, hands.length > 0);
     this.handOverlay.updateFade(deltaTime);
 
     // Update text particles
+    // Pass left hand position for repel effect
+    const leftHandPos = handStates['left']?.pos || null;
+    this.textParticles.setRepelPos(leftHandPos);
     this.textParticles.update(deltaTime, this.handPos, this.hasHand);
+
+    // Update sphere particles
+    const rightHandPos = handStates['right']?.pos || null;
+    this.sphereParticles.update(deltaTime, rightHandPos);
+
+    // Update HUD overlay
+    this._updateHud(hands, gestureState, handStates);
 
     // Render frame
     this.renderer.render();
     this.perfMonitor?.end();
+  }
+
+  /**
+   * Update HUD overlay with current stats
+   * @private
+   */
+  _updateHud(hands, gestureState, handStates) {
+    // Determine left hand mode
+    let leftMode = 'STANDBY';
+    if (handStates['left']) {
+      const leftState = gestureState.leftGestureState;
+      if (leftState === 'closed') {
+        leftMode = 'CATCH';
+      } else if (leftState === 'open') {
+        leftMode = 'IDLE';
+      } else {
+        leftMode = 'IDLE';
+      }
+    }
+
+    // Check for recent explode/implode (would need state tracking for full implementation)
+    // For now, show based on gesture state
+
+    // Determine right hand mode
+    let rightMode = 'STANDBY';
+    if (handStates['right']) {
+      if (gestureState.rightLabel) {
+        // Finger label active (1finger, 2finger, 3finger, 4finger)
+        const labelMap = {
+          '1finger': 'BOOS',
+          '2finger': 'BLIJ',
+          '3finger': 'BANG',
+          '4finger': 'HALLO'
+        };
+        rightMode = labelMap[gestureState.rightLabel] || gestureState.rightLabel.toUpperCase();
+      } else if (gestureState.isRightHandFist) {
+        rightMode = 'SPHERE';
+      } else {
+        rightMode = 'IDLE';
+      }
+    }
+
+    // Get total particle count from all systems
+    const emotionStats = this.emotionParticles.getStats();
+    const textStats = this.textParticles.getStats();
+    const sphereStats = this.sphereParticles.getStats();
+    const totalParticles = (emotionStats.active || 0) + (textStats.active || 0) + (sphereStats.active || 0);
+
+    // Update HUD
+    this.hudOverlay.update({
+      handsDetected: hands.length,
+      particleCount: totalParticles,
+      fps: this.currentFps,
+      leftMode,
+      rightMode,
+      leftDetected: Boolean(handStates['left']),
+      rightDetected: Boolean(handStates['right'])
+    });
   }
 
   _updateLiveStats(hands, now) {
@@ -418,6 +602,18 @@ class Limbus {
 
     const rightState = this.motionAnalyzer.getState('right');
     const leftState = this.motionAnalyzer.getState('left');
+    const rightHand = hands.find(h => h.handId === 'right');
+    const rightLabel = rightHand ? this.gestureController.getRightHandLabel(rightHand) : null;
+
+    // Create finger states string for debugging
+    const fs = rightHand?.fingerStates || {};
+    const fingerStr = [
+      fs.thumb ? 'T' : '-',
+      fs.index ? 'I' : '-',
+      fs.middle ? 'M' : '-',
+      fs.ring ? 'R' : '-',
+      fs.pinky ? 'P' : '-'
+    ].join('');
 
     const toFixed = (value) => Number((value ?? 0).toFixed(3));
 
@@ -427,6 +623,9 @@ class Limbus {
       rightVelocity: toFixed(rightState?.velocity?.magnitude),
       rightJerk: toFixed(rightState?.jerk),
       rightCircular: toFixed(rightState?.circularScore),
+      rightFingerCount: rightHand?.fingerCount ?? 0,
+      rightLabel: rightLabel || '-',
+      rightFingers: fingerStr,
       leftEmotion: this.emotionDetector.getEmotion('left'),
       leftVelocity: toFixed(leftState?.velocity?.magnitude),
       leftJerk: toFixed(leftState?.jerk),
@@ -443,50 +642,17 @@ class Limbus {
     this.handTracker.destroy();
     this.emotionParticles.dispose();
     this.textParticles.dispose();
+    this.sphereParticles.dispose();
     this.handOverlay.dispose();
+    this.sixSevenOverlay.dispose();
+    this.hudOverlay.dispose();
+    this.audioManager.dispose();
     this.perfMonitor?.destroy();
     if (this.debugPanel) {
       this.debugPanel.destroy();
     }
   }
 
-  _handleLeftHandGesture(leftHand, leftPos) {
-    const isClosed = Boolean(leftHand.isClosedFist);
-    const isOpen = Boolean(leftHand.isOpenPalm);
-
-    if (this.leftGesture === 'closed' && isOpen) {
-      this.textParticles.triggerExplode();
-    } else if (this.leftGesture === 'open' && isClosed && leftPos) {
-      this.textParticles.triggerImplode(leftPos);
-    }
-
-    if (isClosed) {
-      this.leftGesture = 'closed';
-    } else if (isOpen) {
-      this.leftGesture = 'open';
-    }
-  }
-
-  _getRightHandLabel(hand) {
-    if (!hand || hand.handId !== 'right') {
-      return null;
-    }
-
-    const count = hand.fingerCount || 0;
-    const states = hand.fingerStates || {};
-
-    if (count === 1 && states.index) {
-      return 'power';
-    }
-    if (count === 2 && states.index && states.middle) {
-      return 'flow';
-    }
-    if (count === 3) {
-      return 'calm';
-    }
-
-    return null;
-  }
 }
 
 // Bootstrap

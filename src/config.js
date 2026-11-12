@@ -10,7 +10,7 @@ export const CONFIG = {
   // MediaPipe Settings
   // ============================================
   mediapipe: {
-    modelPath: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task',
+    modelPath: '/mediapipe/gesture_recognizer.task',
     runningMode: 'VIDEO',
     numHands: 2,
     minHandDetectionConfidence: 0.5,
@@ -154,87 +154,50 @@ export const CONFIG = {
         opacity: 0.85
       }
     },
-    power: {
-      count: 4500,
-      colors: {
-        primary: 0xFF3300,
-        secondary: 0xFF6600
-      },
-      motion: {
-        type: 'explosive',
-        speed: { min: 0.08, max: 0.22 },
-        spread: Math.PI * 2,
-        gravity: 0,
-        turbulence: 0.02
-      },
-      appearance: {
-        size: { min: 0.04, max: 0.12 },
-        lifetime: { min: 0.7, max: 1.4 },
-        glow: 1.4,
-        opacity: 1.0
-      }
+    // Finger gesture kleuren (voor TextParticles)
+    '1finger': {
+      count: 0,
+      colors: { primary: 0xFF0000, secondary: 0xFF6600 },  // BOOS: Rood/Oranje
+      motion: { type: 'drift', speed: { min: 0, max: 0 }, spread: 0, gravity: 0, turbulence: 0 },
+      appearance: { size: { min: 0, max: 0 }, lifetime: { min: 0, max: 0 }, glow: 0, opacity: 0 }
     },
-    flow: {
-      count: 3800,
-      colors: {
-        primary: 0x0044FF,
-        secondary: 0x6600FF
-      },
-      motion: {
-        type: 'wave',
-        speed: { min: 0.025, max: 0.055 },
-        waveAmplitude: 0.12,
-        waveFrequency: 2.4,
-        gravity: 0,
-        turbulence: 0.005
-      },
-      appearance: {
-        size: { min: 0.025, max: 0.06 },
-        lifetime: { min: 2.2, max: 3.8 },
-        glow: 1.1,
-        opacity: 0.9
-      }
+    '2finger': {
+      count: 0,
+      colors: { primary: 0xFFD700, secondary: 0xFFA500 },  // BLIJ: Goud/Oranje
+      motion: { type: 'drift', speed: { min: 0, max: 0 }, spread: 0, gravity: 0, turbulence: 0 },
+      appearance: { size: { min: 0, max: 0 }, lifetime: { min: 0, max: 0 }, glow: 0, opacity: 0 }
     },
-    calm: {
-      count: 3600,
-      colors: {
-        primary: 0x00FF88,
-        secondary: 0x0088FF
-      },
-      motion: {
-        type: 'wave',
-        speed: { min: 0.02, max: 0.05 },
-        waveAmplitude: 0.08,
-        waveFrequency: 1.6,
-        gravity: 0,
-        turbulence: 0
-      },
-      appearance: {
-        size: { min: 0.02, max: 0.05 },
-        lifetime: { min: 3, max: 5 },
-        glow: 1.1,
-        opacity: 0.85
-      }
+    '3finger': {
+      count: 0,
+      colors: { primary: 0x8B00FF, secondary: 0x4B0082 },  // BANG: Paars/Indigo
+      motion: { type: 'drift', speed: { min: 0, max: 0 }, spread: 0, gravity: 0, turbulence: 0 },
+      appearance: { size: { min: 0, max: 0 }, lifetime: { min: 0, max: 0 }, glow: 0, opacity: 0 }
+    },
+    '4finger': {
+      count: 0,
+      colors: { primary: 0x00FF88, secondary: 0x00CC66 },  // HALLO: Groen
+      motion: { type: 'drift', speed: { min: 0, max: 0 }, spread: 0, gravity: 0, turbulence: 0 },
+      appearance: { size: { min: 0, max: 0 }, lifetime: { min: 0, max: 0 }, glow: 0, opacity: 0 }
     },
     rust: {
-      count: 3500,
+      count: 3200,
       colors: {
-        primary: 0x00FF88,
-        secondary: 0x0088FF
+        primary: 0xB87333,    // Copper/warm brown
+        secondary: 0xD4A574   // Sandy beige
       },
       motion: {
-        type: 'wave',
-        speed: { min: 0.02, max: 0.05 },
-        waveAmplitude: 0.08,
-        waveFrequency: 1.6,
-        gravity: 0,
-        turbulence: 0
+        type: 'drift',
+        speed: { min: 0.008, max: 0.02 },
+        spread: Math.PI * 0.5,
+        gravity: -0.002,      // Gentle upward float
+        turbulence: 0.003,
+        randomness: 0.3
       },
       appearance: {
-        size: { min: 0.02, max: 0.05 },
-        lifetime: { min: 3, max: 5 },
-        glow: 1.1,
-        opacity: 0.85
+        size: { min: 0.025, max: 0.055 },
+        lifetime: { min: 4, max: 6 },
+        glow: 0.9,
+        opacity: 0.7
       }
     },
     blij: {
@@ -281,6 +244,18 @@ export const CONFIG = {
         glow: 0.5,
         opacity: 0.3
       }
+    },
+    sixSeven: {
+      count: 2000,
+      colors: {
+        primary: 0xFFFFFF,
+        secondary: 0x00CCFF
+      },
+      appearance: {
+        size: { min: 0.02, max: 0.04 },
+        glow: 1.5,
+        opacity: 1.0
+      }
     }
   },
 
@@ -288,51 +263,114 @@ export const CONFIG = {
   // Text Particles
   // ============================================
   textParticles: {
-    maxCount: 2000,
-    canvasSize: [512, 128],
-    font: 'bold 80px Inter, system-ui, sans-serif',
-    sampleRate: 5,             // Sample every N pixels
-    alphaThreshold: 128,       // Pixel must be > 50% opacity
-    particleScale: 0.005,      // Canvas coords → world coords
-    morphDuration: 0.5,        // Seconds to morph to new text
-    positionOffset: { x: 0, y: 0.4 }, // Position above hand
+    maxCount: 10000,            // Aantal particles
+    canvasSize: [800, 300],    // Sampling canvas grootte
+    font: 'bold 160px "Courier New", monospace',  // Large readable font
+    sampleRate: 3,             // Every 3rd pixel for LED look
+    alphaThreshold: 164,       // Rand scherpte
+    particleScale: 0.006,      // Adjusted for canvas size
+    morphDuration: 0.3,        // Slightly slower morph for cleaner transitions
+    positionOffset: { x: 0, y: 0 }, // Centered (no offset)
+    centerScreen: true,        // Position at screen center, not hand
 
-    // Text per emotion
+    // Hand repel settings (left hand pushes particles away)
+    repel: {
+      enabled: true,
+      radius: 0.4,      // Distance within which particles react
+      strength: 2,     // How hard particles are pushed away
+    },
+
+    // Text per gesture/emotion
     labels: {
-      power: 'POWER',
-      flow: 'FLOW',
-      calm: 'CALM',
+      // Finger gesture labels (descriptive identifiers)
+      '1finger': 'BOOS',
+      '2finger': 'BLIJ',
+      '3finger': 'BANG',
+      '4finger': 'HALLO',
+
+      // Motion-based emotion labels
       woede: 'WOEDE',
       rust: 'RUST',
       blij: 'BLIJ',
+      bang: 'BANG',
+      kalmte: 'KALMTE',
+      verdriet: 'VERDRIET',
       neutraal: null           // No text for neutral
     },
 
-    // Animation per emotion
+    // Animation per gesture/emotion
     animations: {
-      power: 'vibrate',
-      flow: 'flow',
-      calm: 'pulse',
+      // Finger gestures: static (no animation for clarity)
+      '1finger': 'static',
+      '2finger': 'static',
+      '3finger': 'static',
+      '4finger': 'pulse',
+
+      // Motion emotions: animated
       woede: 'vibrate',
       rust: 'pulse',
-      blij: 'sparkle'
+      blij: 'sparkle',
+      bang: 'vibrate',
+      kalmte: 'pulse',
+      verdriet: 'drip'
     },
 
     // Left-hand interactions
     explode: {
-      duration: 0.8,
-      speed: 0.8,
-      drag: 0.94
+      type: 'random',         // 'random' | 'shockwave'
+      duration: 1.5,          // Langer zichtbaar
+      speed: 4,               // Hogere snelheid voor volledig scherm
+      drag: 0.98,             // Minder weerstand = verder reiken
+      sizeVariation: 5,       // Groot verschil: tiny dots tot grote bollen
     },
     implode: {
-      duration: 0.5
+      type: 'swarm',          // 'swarm' | 'spiral' | 'vacuum'
+      duration: 0.6,
     }
+  },
+
+  // ============================================
+  // Sphere Particles (Right Hand Fist)
+  // ============================================
+  sphereParticles: {
+    maxCount: 8000,         // Meer particles voor dichtere look
+    radius: 0.55,           // Grote sphere (iets kleiner)
+    innerRadius: 0.40,      // Particles meer naar buiten (minder vulling)
+    formationDuration: 0.5, // Seconden voor volledige formatie
+    formationSpread: 1.2,   // Startafstand particles (groter = verder weg)
+    floatOffset: 0.0,       // Centered op de hand
+    colors: {
+      primary: 0xFFD700,    // Goud
+      secondary: 0xFFA500,  // Oranje
+      aura: 0xFFAA00        // Aura kleur
+    },
+    wobble: {
+      speed: 2,
+      amplitude: 0.02
+    },
+    particleSize: 0.018,    // Kleinere particles voor strakke look
+    shell: {
+      enabled: true,
+      particles: 3000,      // Veel particles op de rand
+      thickness: 0.04,      // Dunne, strakke rand
+      brightness: 1.5       // Extra helder
+    },
+    aura: {
+      enabled: true,
+      particles: 800,       // Meer aura particles
+      thickness: 0.06,      // Dunnere aura ring
+      opacity: 0.9,         // Feller
+      pulseSpeed: 2.0
+    },
+    fadeInDuration: 0.25,
+    fadeOutDuration: 0.15
   },
 
   // ============================================
   // Hand Overlay
   // ============================================
   handOverlay: {
+    enabled: false,            // Disable hand overlay
     dotSize: 0.015,
     dotColor: 0xFFFFFF,
     lineWidth: 1,
@@ -381,6 +419,19 @@ export const CONFIG = {
     showLandmarks: isDev,
     forceEmotion: null,        // 'woede' | 'verdriet' | 'kalmte' | null
     logEmotionChanges: false
+  },
+
+  // ============================================
+  // Audio (Whoosh sound effects)
+  // ============================================
+  audio: {
+    enabled: true,
+    volume: 0.5,
+    minInterval: 150,  // ms between sounds (prevents spam)
+    velocityThreshold: 0.04,  // Minimum velocity to trigger whoosh
+    sounds: {
+      whoosh: '/sounds/812688__audiopapkin__sound-design-elements-whoosh-sfx-051.wav'
+    }
   }
 };
 
@@ -397,4 +448,5 @@ if (!isDev) {
   Object.freeze(CONFIG.render);
   Object.freeze(CONFIG.performance);
   Object.freeze(CONFIG.debug);
+  Object.freeze(CONFIG.audio);
 }

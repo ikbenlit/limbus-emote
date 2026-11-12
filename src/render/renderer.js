@@ -132,6 +132,26 @@ export class Renderer {
   }
 
   /**
+   * Convert world coordinates to screen pixel coordinates
+   * @param {number} x - World x coordinate
+   * @param {number} y - World y coordinate
+   * @returns {{x: number, y: number}}
+   */
+  worldToScreen(x, y) {
+    const aspect = window.innerWidth / window.innerHeight;
+    const frustumSize = this.config.frustumSize || 2;
+
+    // Inverse of screenToWorld
+    const normalizedX = 0.5 - x / (frustumSize * aspect);
+    const normalizedY = 0.5 - y / frustumSize;
+
+    return {
+      x: normalizedX * window.innerWidth,
+      y: normalizedY * window.innerHeight
+    };
+  }
+
+  /**
    * Get renderer info for debugging
    */
   getInfo() {

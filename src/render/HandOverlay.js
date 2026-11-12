@@ -34,6 +34,12 @@ export class HandOverlay {
    * Initialize Three.js objects for overlay
    */
   init() {
+    // Skip initialization if disabled
+    if (this.config.enabled === false) {
+      this.group.visible = false;
+      return this;
+    }
+
     const numLandmarks = 21;
     const numConnections = this.config.connections.length;
     const totalLandmarks = numLandmarks * this.maxHands;
@@ -95,6 +101,8 @@ export class HandOverlay {
    * @param {boolean} hasAnyHand - Whether any hand is currently detected
    */
   update(allHandLandmarks, hasAnyHand) {
+    if (this.config.enabled === false) return;
+
     if (hasAnyHand && allHandLandmarks && allHandLandmarks.length > 0) {
       this.targetOpacity = this.config.opacity;
       this._updatePositions(allHandLandmarks);
@@ -107,6 +115,8 @@ export class HandOverlay {
    * Update opacity (call each frame for smooth fade)
    */
   updateFade(deltaTime) {
+    if (this.config.enabled === false) return;
+
     // Smooth fade towards target
     const fadeSpeed = 1 / this.config.fadeOutDuration;
 
